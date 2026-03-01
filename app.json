@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "splash": {
-    "resizeMode": "contain",
-    "backgroundColor": "#0D0F14"
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0F14"
     },
     "ios": {
       "supportsTablet": false,
@@ -27,7 +27,8 @@
     },
     "scheme": "lexcalc",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
