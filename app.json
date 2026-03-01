@@ -27,14 +27,7 @@
     },
     "scheme": "lexcalc",
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#0D0F14",
-          "resizeMode": "contain"
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
