@@ -4,33 +4,54 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Card, Badge } from '../../components/ui';
-import { theme, TYPE_LABELS, TYPE_COLORS, TYPE_ICONS } from '../../lib/theme';
-import { formatTL, shortTL } from '../../lib/calculations';
+import { Card } from '../../components/ui';
+import { theme } from '../../lib/theme';
+import { formatTL } from '../../lib/calculations';
 import { useSubscription } from '../../context/SubscriptionContext';
-import { TrialBanner, PaywallModal } from '../../components/paywall';
+import { PaywallModal } from '../../components/paywall';
+import { AdBanner } from '../../components/AdBanner';
 
-const QUICK_ACTIONS = [
-  { icon: '🏠', label: 'Tapu Harcı', type: 'tapu', route: '/calc/tapu' },
-  { icon: '📄', label: 'Damga Vergisi', type: 'damga', route: '/calc/damga' },
-  { icon: '🧾', label: 'KDV %20', type: 'kdv', route: '/calc/kdv' },
-  { icon: '📝', label: 'Noter Harcı', type: 'noter', route: '/calc/noter' },
-  { icon: '⚖️', label: 'Avukatlık Ücreti', type: 'avukatlik', route: '/calc/avukatlik' },
-  { icon: '🔢', label: 'Özel Formül', type: 'custom', route: '/calc/custom' },
-];
-
-const HARC_ACTIONS = [
-  { icon: '⚡', label: 'İlamsız İcra', color: '#dc2626', harcKey: 'icra_ilamsiz' },
-  { icon: '📜', label: 'İlamlı İcra', color: '#7c3aed', harcKey: 'icra_ilamli' },
-  { icon: '⚖️', label: 'Nispi Harç', color: '#0891b2', harcKey: 'dava_nispi' },
-  { icon: '🏛️', label: 'Karar Harcı', color: '#d97706', harcKey: 'karar_ilam' },
-];
-
-const FAIZ_ACTIONS = [
-  { icon: '⚖️', label: 'Yasal Faiz', color: '#6366f1', faizKey: 'yasal' },
-  { icon: '🏦', label: 'Ticari Faiz', color: '#0891b2', faizKey: 'ticari' },
-  { icon: '📋', label: 'Gecikme Zammı', color: '#dc2626', faizKey: 'gecikme' },
-  { icon: '💳', label: 'Avans Faizi', color: '#d97706', faizKey: 'avans' },
+// ─── Kategoriler ───────────────────────────────────────────────
+const CATEGORIES = [
+  {
+    title: '🏠 Gayrimenkul',
+    color: '#C9A96E',
+    items: [
+      { icon: '🏠', label: 'Tapu Harcı', sub: 'Alım-satım harcı', route: '/calc/tapu' },
+      { icon: '📄', label: 'Damga Vergisi', sub: 'Sözleşme vergisi', route: '/calc/damga' },
+      { icon: '🏢', label: 'Kira Stopajı', sub: 'Kira vergisi kesintisi', route: '/calc/kira_stopaj' },
+    ],
+  },
+  {
+    title: '🚗 Araç & Trafik',
+    color: '#6366f1',
+    items: [
+      { icon: '🚗', label: 'MTV', sub: 'Motorlu Taşıtlar Vergisi', route: '/calc/mtv' },
+      { icon: '🔧', label: 'Araç Muayene', sub: '2026 muayene ücreti', route: '/calc/muayene' },
+      { icon: '🚨', label: 'Trafik Cezası', sub: 'Erken ödeme indirimi', route: '/calc/trafik_ceza' },
+    ],
+  },
+  {
+    title: '⚖️ Hukuki & Resmi',
+    color: '#0891b2',
+    items: [
+      { icon: '📝', label: 'Noter Harcı', sub: 'İşlem bedeli harcı', route: '/calc/noter' },
+      { icon: '🪪', label: 'Pasaport / Kimlik', sub: 'Belge harçları', route: '/calc/pasaport' },
+      { icon: '🏛️', label: 'Yargı Harcı', sub: 'İcra & dava harcı', route: '/harc' },
+    ],
+  },
+  {
+    title: '💰 Vergi',
+    color: '#22c55e',
+    items: [
+      { icon: '🧾', label: 'KDV %20', sub: 'Genel oran', route: '/calc/kdv' },
+      { icon: '🧾', label: 'KDV %10', sub: 'İndirimli oran', route: '/calc/kdv10' },
+      { icon: '🧾', label: 'KDV %1', sub: 'İndirimli oran', route: '/calc/kdv1' },
+      { icon: '💼', label: 'Serbest Meslek', sub: 'Stopaj + KDV hesabı', route: '/calc/serbest_meslek' },
+      { icon: '🏦', label: 'Veraset Vergisi', sub: 'Miras & intikal vergisi', route: '/calc/veraset' },
+      { icon: '📊', label: 'Faiz Hesabı', sub: 'Yasal, ticari, gecikme', route: '/faiz' },
+    ],
+  },
 ];
 
 export default function HomeScreen() {
@@ -42,15 +63,16 @@ export default function HomeScreen() {
   const { isPremium, isTrialActive, daysLeft } = useSubscription();
 
   const fetchCalcs = async () => {
+    if (!isPremium && !isTrialActive) return;
     const { data } = await supabase
       .from('calculations')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(5);
     if (data) setCalcs(data);
   };
 
-  useFocusEffect(useCallback(() => { fetchCalcs(); }, []));
+  useFocusEffect(useCallback(() => { fetchCalcs(); }, [isPremium, isTrialActive]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -58,13 +80,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const thisMonthCalcs = calcs.filter(c => {
-    const d = new Date(c.created_at);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
-
-  const totalResult = calcs.reduce((s, c) => s + (c.result || 0), 0);
+  const firstName = profile?.full_name?.split(' ')[0] || null;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -72,125 +88,93 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}
       >
+
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hoş geldiniz,</Text>
-          <Text style={styles.name}>{profile?.full_name || 'Avukat'}</Text>
-          {profile?.firm_name ? <Text style={styles.firm}>{profile.firm_name}</Text> : null}
+          <View>
+            <Text style={styles.greeting}>{firstName ? `Merhaba, ${firstName} 👋` : 'Merhaba 👋'}</Text>
+            <Text style={styles.subtitle}>Hangi hesabı yapmak istersiniz?</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => !isPremium && setShowPaywall(true)}
+            style={[styles.premiumBadge, isPremium && styles.premiumBadgeActive]}
+          >
+            <Text style={styles.premiumBadgeText}>{isPremium ? '👑 Premium' : '⭐ Ücretsiz'}</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Trial Banner */}
+        {/* Trial / Premium banner */}
         {isTrialActive && (
-          <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
+          <TouchableOpacity onPress={() => setShowPaywall(true)} style={styles.trialBanner}>
+            <Text style={styles.trialBannerText}>⏳ Deneme süreniz: {daysLeft} gün kaldı — Premium'a geç →</Text>
+          </TouchableOpacity>
         )}
         {!isPremium && !isTrialActive && (
-          <TouchableOpacity
-            onPress={() => setShowPaywall(true)}
-            style={styles.expiredBanner}
-          >
-            <Text style={styles.expiredBannerText}>
-              🔒 Deneme süreniz doldu — Premium'a geç
-            </Text>
+          <TouchableOpacity onPress={() => setShowPaywall(true)} style={styles.expiredBanner}>
+            <Text style={styles.expiredBannerText}>🔒 Reklamsız kullanım için Premium'a geç →</Text>
           </TouchableOpacity>
         )}
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          {[
-            { label: 'Bu Ay', value: thisMonthCalcs.length.toString(), sub: 'hesaplama' },
-            { label: 'Toplam', value: calcs.length.toString(), sub: 'kayıt' },
-            { label: 'Toplam', value: shortTL(totalResult), sub: 'vergi/harç' },
-          ].map((s, i) => (
-            <Card key={i} style={styles.statCard}>
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statSub}>{s.sub}</Text>
-            </Card>
-          ))}
-        </View>
-
-        {/* Hızlı İşlemler */}
-        <Text style={styles.sectionLabel}>Hızlı İşlem</Text>
-        <View style={styles.grid}>
-          {QUICK_ACTIONS.map((a, i) => (
-            <TouchableOpacity
-              key={i}
-              onPress={() => router.push(a.route as any)}
-              activeOpacity={0.7}
-              style={styles.actionCard}
-            >
-              <Text style={styles.actionIcon}>{a.icon}</Text>
-              <View>
-                <Text style={styles.actionLabel}>{a.label}</Text>
-                <Text style={styles.actionSub}>Hesapla →</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Faiz Hesaplayıcı */}
-        <Text style={styles.sectionLabel}>Faiz Hesaplayıcı</Text>
-        <View style={styles.faizGrid}>
-          {FAIZ_ACTIONS.map((f, i) => (
-            <TouchableOpacity
-              key={i}
-              onPress={() => router.push(`/faiz?faizKey=${f.faizKey}` as any)}
-              activeOpacity={0.7}
-              style={[styles.faizCard, { borderColor: f.color + '44', backgroundColor: f.color + '12' }]}
-            >
-              <Text style={styles.faizIcon}>{f.icon}</Text>
-              <Text style={[styles.faizLabel, { color: f.color }]}>{f.label}</Text>
-              <Text style={[styles.faizArrow, { color: f.color }]}>→</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* İcra & Yargı Harcı */}
-        <Text style={styles.sectionLabel}>İcra & Yargı Harcı</Text>
-        <View style={styles.faizGrid}>
-          {HARC_ACTIONS.map((h, i) => (
-            <TouchableOpacity
-              key={i}
-              onPress={() => router.push(`/harc?harcKey=${h.harcKey}` as any)}
-              activeOpacity={0.7}
-              style={[styles.faizCard, { borderColor: h.color + '44', backgroundColor: h.color + '12' }]}
-            >
-              <Text style={styles.faizIcon}>{h.icon}</Text>
-              <Text style={[styles.faizLabel, { color: h.color }]}>{h.label}</Text>
-              <Text style={[styles.faizArrow, { color: h.color }]}>→</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Son İşlemler */}
-        <Text style={styles.sectionLabel}>Son İşlemler</Text>
-        {calcs.slice(0, 4).map(c => (
-          <TouchableOpacity
-            key={c.id}
-            onPress={() => router.push(
-              c.type === 'custom' ? `/calc/custom?id=${c.id}` : `/calc/${c.type}?id=${c.id}` as any
-            )}
-            activeOpacity={0.7}
-          >
-            <Card style={styles.recentCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.recentTitle} numberOfLines={1}>{c.title}</Text>
-                <Text style={styles.recentDate}>{new Date(c.created_at).toLocaleDateString('tr-TR')}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={styles.recentResult}>{formatTL(c.result)}</Text>
-                <Badge color={TYPE_COLORS[c.type] || theme.textMuted}>{TYPE_LABELS[c.type] || c.type}</Badge>
-              </View>
-            </Card>
-          </TouchableOpacity>
+        {/* Kategoriler */}
+        {CATEGORIES.map((cat, ci) => (
+          <View key={ci} style={styles.categorySection}>
+            <Text style={[styles.categoryTitle, { color: cat.color }]}>{cat.title}</Text>
+            <View style={styles.grid}>
+              {cat.items.map((item, ii) => (
+                <TouchableOpacity
+                  key={ii}
+                  onPress={() => router.push(item.route as any)}
+                  activeOpacity={0.7}
+                  style={[styles.actionCard, { borderColor: cat.color + '33' }]}
+                >
+                  <Text style={styles.actionIcon}>{item.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.actionLabel}>{item.label}</Text>
+                    <Text style={styles.actionSub}>{item.sub}</Text>
+                  </View>
+                  <Text style={[styles.actionArrow, { color: cat.color }]}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         ))}
 
-        {calcs.length === 0 && (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Henüz hesaplama yok. Yukarıdan başlayın!</Text>
-          </Card>
+        {/* Son İşlemler — sadece premium */}
+        {(isPremium || isTrialActive) ? (
+          <View style={styles.categorySection}>
+            <Text style={styles.sectionLabel}>Son İşlemler</Text>
+            {calcs.length === 0 ? (
+              <Card style={styles.emptyCard}>
+                <Text style={styles.emptyText}>Henüz hesaplama kaydınız yok.</Text>
+              </Card>
+            ) : (
+              calcs.map(c => (
+                <TouchableOpacity
+                  key={c.id}
+                  onPress={() => router.push(`/calc/${c.type}?id=${c.id}` as any)}
+                  activeOpacity={0.7}
+                >
+                  <Card style={styles.recentCard}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.recentTitle} numberOfLines={1}>{c.title}</Text>
+                      <Text style={styles.recentDate}>{new Date(c.created_at).toLocaleDateString('tr-TR')}</Text>
+                    </View>
+                    <Text style={styles.recentResult}>{formatTL(c.result)}</Text>
+                  </Card>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => setShowPaywall(true)} style={styles.historyLock}>
+            <Text style={styles.historyLockIcon}>🔒</Text>
+            <Text style={styles.historyLockText}>Hesaplama geçmişi Premium özelliğidir</Text>
+            <Text style={styles.historyLockSub}>Abone ol →</Text>
+          </TouchableOpacity>
         )}
 
       </ScrollView>
+      <AdBanner />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </SafeAreaView>
   );
@@ -198,43 +182,55 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
-  scroll: { padding: 20, paddingBottom: 40 },
-  header: { marginBottom: 20 },
-  greeting: { fontSize: 12, color: theme.textMuted },
-  name: { fontSize: 22, fontWeight: '700', color: theme.text, marginTop: 2 },
-  firm: { fontSize: 12, color: theme.accent, marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  statCard: { flex: 1, padding: 12, alignItems: 'center' },
-  statValue: { fontSize: 18, fontWeight: '700', color: theme.accent },
-  statSub: { fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
-  sectionLabel: { fontSize: 11, color: theme.textMuted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: '500', marginBottom: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  actionCard: {
-    width: '48%', backgroundColor: theme.surface,
-    borderWidth: 1, borderColor: theme.border, borderRadius: 16,
-    padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10,
+  scroll: { padding: 20, paddingBottom: 60 },
+
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  greeting: { fontSize: 20, fontWeight: '700', color: theme.text },
+  subtitle: { fontSize: 13, color: theme.textMuted, marginTop: 2 },
+  premiumBadge: {
+    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
   },
-  actionIcon: { fontSize: 20 },
-  actionLabel: { fontSize: 13, fontWeight: '500', color: theme.text },
-  actionSub: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
-  faizGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  faizCard: {
-    width: '48%', borderWidth: 1, borderRadius: 16,
-    padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10,
+  premiumBadgeActive: { borderColor: theme.accentMuted, backgroundColor: theme.accentDim },
+  premiumBadgeText: { fontSize: 12, fontWeight: '600', color: theme.accent },
+
+  trialBanner: {
+    backgroundColor: theme.accentDim, borderWidth: 1, borderColor: theme.accentMuted,
+    borderRadius: 12, padding: 12, marginBottom: 16, alignItems: 'center',
   },
-  faizIcon: { fontSize: 20 },
-  faizLabel: { flex: 1, fontSize: 13, fontWeight: '600' },
-  faizArrow: { fontSize: 16, fontWeight: '700' },
-  recentCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  recentTitle: { fontSize: 13, fontWeight: '500', color: theme.text, flex: 1 },
-  recentDate: { fontSize: 11, color: theme.textMuted, marginTop: 3 },
-  recentResult: { fontSize: 14, color: theme.accent, fontWeight: '600' },
-  emptyCard: { alignItems: 'center', padding: 32 },
-  emptyText: { color: theme.textMuted, fontSize: 14 },
+  trialBannerText: { fontSize: 13, fontWeight: '600', color: theme.accent },
   expiredBanner: {
-    backgroundColor: '#E0525214', borderWidth: 1, borderColor: '#E0525244',
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
-    marginBottom: 12, alignItems: 'center',
+    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border,
+    borderRadius: 12, padding: 12, marginBottom: 16, alignItems: 'center',
   },
-  expiredBannerText: { fontSize: 13, fontWeight: '600', color: theme.danger },
+  expiredBannerText: { fontSize: 13, color: theme.textMuted },
+
+  categorySection: { marginBottom: 24 },
+  categoryTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, marginBottom: 10 },
+  grid: { gap: 8 },
+  actionCard: {
+    backgroundColor: theme.surface, borderWidth: 1,
+    borderRadius: 14, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  actionIcon: { fontSize: 22, width: 32, textAlign: 'center' },
+  actionLabel: { fontSize: 14, fontWeight: '600', color: theme.text },
+  actionSub: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
+  actionArrow: { fontSize: 20, fontWeight: '700' },
+
+  sectionLabel: { fontSize: 11, color: theme.textMuted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: '500', marginBottom: 10 },
+  recentCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  recentTitle: { fontSize: 13, fontWeight: '500', color: theme.text },
+  recentDate: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
+  recentResult: { fontSize: 14, color: theme.accent, fontWeight: '600' },
+  emptyCard: { alignItems: 'center', padding: 24 },
+  emptyText: { color: theme.textMuted, fontSize: 13 },
+
+  historyLock: {
+    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border,
+    borderRadius: 14, padding: 20, alignItems: 'center', gap: 6, marginBottom: 24,
+  },
+  historyLockIcon: { fontSize: 28 },
+  historyLockText: { fontSize: 14, fontWeight: '600', color: theme.text },
+  historyLockSub: { fontSize: 12, color: theme.accent },
 });

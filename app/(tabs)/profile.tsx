@@ -35,7 +35,24 @@ function PasswordModal({ visible, onClose, userEmail }: {
   const handleVerifyOld = async () => {
     if (!oldPass) { Alert.alert('Hata', 'Mevcut şifrenizi girin.'); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: userEmail, password: oldPass });
+    
+    // Mevcut session'ı önce kaydet
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    
+    // Şifreyi doğrula
+    const { error } = await supabase.auth.signInWithPassword({ 
+      email: userEmail, 
+      password: oldPass 
+    });
+    
+    // Session'ı geri yükle
+    if (currentSession) {
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token,
+      });
+    }
+    
     setLoading(false);
     if (error) {
       Alert.alert('Hata', 'Mevcut şifreniz yanlış.');
