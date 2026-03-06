@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "splash": {
-      "resizeMode": "contain",
       "backgroundColor": "#0D0F14"
     },
     "ios": {
