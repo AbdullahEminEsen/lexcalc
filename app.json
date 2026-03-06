@@ -26,16 +26,24 @@
     },
     "scheme": "lexcalc",
     "plugins": [
-      "expo-router",
-      "expo-asset",
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-5947294446989987~9913287376",
-          "iosAppId": "ca-app-pub-5947294446989987~9913287376"
-        }
-      ]
-    ],
+  "expo-router",
+  "expo-asset",
+  [
+    "expo-splash-screen",
+    {
+      "backgroundColor": "#0D0F14",
+      "image": null,
+      "resizeMode": "contain"
+    }
+  ],
+  [
+    "react-native-google-mobile-ads",
+    {
+      "androidAppId": "ca-app-pub-5947294446989987~9913287376",
+      "iosAppId": "ca-app-pub-5947294446989987~9913287376"
+    }
+  ]
+],
     "experiments": {
       "typedRoutes": true
     },
