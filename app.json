@@ -6,8 +6,10 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#0D0F14"
-    },
+  "image": "./assets/splashscreen_logo.png",
+  "resizeMode": "contain",
+  "backgroundColor": "#0D0F14"
+},
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.lexcalc.app"
@@ -30,11 +32,11 @@
   "expo-asset",
   [
     "expo-splash-screen",
-    {
-      "backgroundColor": "#0D0F14",
-      "image": null,
-      "resizeMode": "contain"
-    }
+  {
+    "backgroundColor": "#0D0F14",
+    "image": "./assets/splashscreen_logo.png",
+    "resizeMode": "contain"
+  }
   ],
   [
     "react-native-google-mobile-ads",
