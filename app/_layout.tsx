@@ -41,9 +41,7 @@ function RootLayoutNav() {
       <Stack.Screen name="calc/[type]" />
       <Stack.Screen name="calc/custom" />
       <Stack.Screen name="faiz" />
-      <Stack.Screen name="harc" />
       <Stack.Screen name="mtv" />
-      <Stack.Screen name="trafik_ceza" />
       <Stack.Screen name="pasaport" />
       <Stack.Screen name="paywall" />
     </Stack>

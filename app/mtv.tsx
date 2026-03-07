@@ -176,14 +176,6 @@ export default function MTVScreen() {
             <Text style={styles.fieldLabel}>
               {tip === 'elektrik' ? 'Motor Gücü (kW)' : 'Motor Hacmi (cc)'}
             </Text>
-            <View style={styles.inputRow}>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputText}
-                  onPress={() => {/* handled below */}}
-                >{hacim || '0'}</Text>
-              </View>
-              {/* Number input row */}
-            </View>
             <View style={styles.quickRow}>
               {(tip === 'elektrik'
                 ? [75, 100, 130, 160]

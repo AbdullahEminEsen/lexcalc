@@ -1,55 +1,51 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Card } from '../../components/ui';
-import { theme } from '../../lib/theme';
-import { formatTL } from '../../lib/calculations';
+import { Card, Badge } from '../../components/ui';
+import { theme, TYPE_LABELS, TYPE_COLORS } from '../../lib/theme';
+import { formatTL, shortTL } from '../../lib/calculations';
 import { useSubscription } from '../../context/SubscriptionContext';
-import { PaywallModal } from '../../components/paywall';
+import { TrialBanner, PaywallModal } from '../../components/paywall';
 import { AdBanner } from '../../components/AdBanner';
 
-// ─── Kategoriler ───────────────────────────────────────────────
-const CATEGORIES = [
+const CALC_CATEGORIES = [
   {
-    title: '🏠 Gayrimenkul',
-    color: '#C9A96E',
+    label: 'Gayrimenkul',
+    icon: '🏠',
     items: [
-      { icon: '🏠', label: 'Tapu Harcı', sub: 'Alım-satım harcı', route: '/calc/tapu' },
-      { icon: '📄', label: 'Damga Vergisi', sub: 'Sözleşme vergisi', route: '/calc/damga' },
-      { icon: '🏢', label: 'Kira Stopajı', sub: 'Kira vergisi kesintisi', route: '/calc/kira_stopaj' },
+      { icon: '🏠', label: 'Tapu Harcı', route: '/calc/tapu' },
+      { icon: '📄', label: 'Damga Vergisi', route: '/calc/damga' },
     ],
   },
   {
-    title: '🚗 Araç & Trafik',
-    color: '#6366f1',
+    label: 'Vergi',
+    icon: '🧾',
     items: [
-      { icon: '🚗', label: 'MTV', sub: 'Motorlu Taşıtlar Vergisi', route: '/calc/mtv' },
-      { icon: '🔧', label: 'Araç Muayene', sub: '2026 muayene ücreti', route: '/calc/muayene' },
-      { icon: '🚨', label: 'Trafik Cezası', sub: 'Erken ödeme indirimi', route: '/calc/trafik_ceza' },
+      { icon: '🧾', label: 'KDV %20', route: '/calc/kdv' },
+      { icon: '🧾', label: 'KDV %10', route: '/calc/kdv10' },
+      { icon: '📊', label: 'Motorlu Taşıtlar Vergisi', route: '/mtv' },
     ],
   },
   {
-    title: '⚖️ Hukuki & Resmi',
-    color: '#0891b2',
+    label: 'Hukuki İşlemler',
+    icon: '⚖️',
     items: [
-      { icon: '📝', label: 'Noter Harcı', sub: 'İşlem bedeli harcı', route: '/calc/noter' },
-      { icon: '🪪', label: 'Pasaport / Kimlik', sub: 'Belge harçları', route: '/calc/pasaport' },
-      { icon: '🏛️', label: 'Yargı Harcı', sub: 'İcra & dava harcı', route: '/harc' },
+      { icon: '📝', label: 'Noter Harcı', route: '/calc/noter' },
+      { icon: '⚖️', label: 'Avukatlık Ücreti', route: '/calc/avukatlik' },
+      { icon: '🛂', label: 'Pasaport Harcı', route: '/pasaport' },
     ],
   },
   {
-    title: '💰 Vergi',
-    color: '#22c55e',
+    label: 'Faiz Hesabı',
+    icon: '📈',
     items: [
-      { icon: '🧾', label: 'KDV %20', sub: 'Genel oran', route: '/calc/kdv' },
-      { icon: '🧾', label: 'KDV %10', sub: 'İndirimli oran', route: '/calc/kdv10' },
-      { icon: '🧾', label: 'KDV %1', sub: 'İndirimli oran', route: '/calc/kdv1' },
-      { icon: '💼', label: 'Serbest Meslek', sub: 'Stopaj + KDV hesabı', route: '/calc/serbest_meslek' },
-      { icon: '🏦', label: 'Veraset Vergisi', sub: 'Miras & intikal vergisi', route: '/calc/veraset' },
-      { icon: '📊', label: 'Faiz Hesabı', sub: 'Yasal, ticari, gecikme', route: '/faiz' },
+      { icon: '⚖️', label: 'Yasal Faiz', route: '/faiz?faizKey=yasal' },
+      { icon: '🏦', label: 'Ticari Faiz', route: '/faiz?faizKey=ticari' },
+      { icon: '📋', label: 'Gecikme Zammı', route: '/faiz?faizKey=gecikme' },
+      { icon: '💳', label: 'Avans Faizi', route: '/faiz?faizKey=avans' },
     ],
   },
 ];
@@ -63,16 +59,15 @@ export default function HomeScreen() {
   const { isPremium, isTrialActive, daysLeft } = useSubscription();
 
   const fetchCalcs = async () => {
-    if (!isPremium && !isTrialActive) return;
     const { data } = await supabase
       .from('calculations')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(50);
     if (data) setCalcs(data);
   };
 
-  useFocusEffect(useCallback(() => { fetchCalcs(); }, [isPremium, isTrialActive]));
+  useFocusEffect(useCallback(() => { fetchCalcs(); }, []));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -80,7 +75,14 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const firstName = profile?.full_name?.split(' ')[0] || null;
+  const thisMonthCalcs = calcs.filter(c => {
+    const d = new Date(c.created_at);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  const totalResult = calcs.reduce((s, c) => s + (c.result || 0), 0);
+  const firstName = profile?.full_name?.split(' ')[0] || 'Kullanıcı';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -88,92 +90,91 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}
       >
-
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{firstName ? `Merhaba, ${firstName} 👋` : 'Merhaba 👋'}</Text>
-            <Text style={styles.subtitle}>Hangi hesabı yapmak istersiniz?</Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => !isPremium && setShowPaywall(true)}
-            style={[styles.premiumBadge, isPremium && styles.premiumBadgeActive]}
-          >
-            <Text style={styles.premiumBadgeText}>{isPremium ? '👑 Premium' : '⭐ Ücretsiz'}</Text>
-          </TouchableOpacity>
+          <Text style={styles.greeting}>Merhaba,</Text>
+          <Text style={styles.name}>{firstName} 👋</Text>
+          <Text style={styles.subtitle}>Ne hesaplamak istersiniz?</Text>
         </View>
 
-        {/* Trial / Premium banner */}
         {isTrialActive && (
-          <TouchableOpacity onPress={() => setShowPaywall(true)} style={styles.trialBanner}>
-            <Text style={styles.trialBannerText}>⏳ Deneme süreniz: {daysLeft} gün kaldı — Premium'a geç →</Text>
-          </TouchableOpacity>
+          <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
         )}
         {!isPremium && !isTrialActive && (
           <TouchableOpacity onPress={() => setShowPaywall(true)} style={styles.expiredBanner}>
-            <Text style={styles.expiredBannerText}>🔒 Reklamsız kullanım için Premium'a geç →</Text>
+            <Text style={styles.expiredBannerText}>🔒 Premium&apos;a geç — reklamsız kullan</Text>
           </TouchableOpacity>
         )}
 
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          {[
+            { value: thisMonthCalcs.length.toString(), sub: 'bu ay' },
+            { value: calcs.length.toString(), sub: 'toplam' },
+            { value: shortTL(totalResult), sub: 'sonuç' },
+          ].map((s, i) => (
+            <Card key={i} style={styles.statCard}>
+              <Text style={styles.statValue}>{s.value}</Text>
+              <Text style={styles.statSub}>{s.sub}</Text>
+            </Card>
+          ))}
+        </View>
+
         {/* Kategoriler */}
-        {CATEGORIES.map((cat, ci) => (
-          <View key={ci} style={styles.categorySection}>
-            <Text style={[styles.categoryTitle, { color: cat.color }]}>{cat.title}</Text>
+        {CALC_CATEGORIES.map((cat, ci) => (
+          <View key={ci} style={styles.categoryBlock}>
+            <Text style={styles.sectionLabel}>{cat.icon}  {cat.label.toUpperCase()}</Text>
             <View style={styles.grid}>
-              {cat.items.map((item, ii) => (
+              {cat.items.map((a, i) => (
                 <TouchableOpacity
-                  key={ii}
-                  onPress={() => router.push(item.route as any)}
+                  key={i}
+                  onPress={() => router.push(a.route as any)}
                   activeOpacity={0.7}
-                  style={[styles.actionCard, { borderColor: cat.color + '33' }]}
+                  style={styles.actionCard}
                 >
-                  <Text style={styles.actionIcon}>{item.icon}</Text>
+                  <Text style={styles.actionIcon}>{a.icon}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.actionLabel}>{item.label}</Text>
-                    <Text style={styles.actionSub}>{item.sub}</Text>
+                    <Text style={styles.actionLabel}>{a.label}</Text>
+                    <Text style={styles.actionSub}>Hesapla →</Text>
                   </View>
-                  <Text style={[styles.actionArrow, { color: cat.color }]}>›</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         ))}
 
-        {/* Son İşlemler — sadece premium */}
-        {(isPremium || isTrialActive) ? (
-          <View style={styles.categorySection}>
-            <Text style={styles.sectionLabel}>Son İşlemler</Text>
-            {calcs.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Henüz hesaplama kaydınız yok.</Text>
-              </Card>
-            ) : (
-              calcs.map(c => (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => router.push(`/calc/${c.type}?id=${c.id}` as any)}
-                  activeOpacity={0.7}
-                >
-                  <Card style={styles.recentCard}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.recentTitle} numberOfLines={1}>{c.title}</Text>
-                      <Text style={styles.recentDate}>{new Date(c.created_at).toLocaleDateString('tr-TR')}</Text>
-                    </View>
-                    <Text style={styles.recentResult}>{formatTL(c.result)}</Text>
-                  </Card>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
+        {/* Son İşlemler */}
+        <Text style={styles.sectionLabel}>📋  SON İŞLEMLER</Text>
+        {calcs.length === 0 ? (
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Henüz hesaplama yok. Yukarıdan başlayın!</Text>
+          </Card>
         ) : (
-          <TouchableOpacity onPress={() => setShowPaywall(true)} style={styles.historyLock}>
-            <Text style={styles.historyLockIcon}>🔒</Text>
-            <Text style={styles.historyLockText}>Hesaplama geçmişi Premium özelliğidir</Text>
-            <Text style={styles.historyLockSub}>Abone ol →</Text>
-          </TouchableOpacity>
+          calcs.slice(0, 5).map(c => (
+            <TouchableOpacity
+              key={c.id}
+              onPress={() => {
+                if (!isPremium && !isTrialActive) { setShowPaywall(true); return; }
+                router.push((`/calc/${c.type}?id=${c.id}`) as any);
+              }}
+              activeOpacity={0.7}
+            >
+              <Card style={styles.recentCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recentTitle} numberOfLines={1}>{c.title}</Text>
+                  <Text style={styles.recentDate}>{new Date(c.created_at).toLocaleDateString('tr-TR')}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <Text style={styles.recentResult}>{formatTL(c.result)}</Text>
+                  <Badge color={TYPE_COLORS[c.type] || theme.textMuted}>{TYPE_LABELS[c.type] || c.type}</Badge>
+                </View>
+              </Card>
+            </TouchableOpacity>
+          ))
         )}
 
       </ScrollView>
+
       <AdBanner />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </SafeAreaView>
@@ -182,55 +183,36 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
-  scroll: { padding: 20, paddingBottom: 60 },
-
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  greeting: { fontSize: 20, fontWeight: '700', color: theme.text },
-  subtitle: { fontSize: 13, color: theme.textMuted, marginTop: 2 },
-  premiumBadge: {
-    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border,
-    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
-  },
-  premiumBadgeActive: { borderColor: theme.accentMuted, backgroundColor: theme.accentDim },
-  premiumBadgeText: { fontSize: 12, fontWeight: '600', color: theme.accent },
-
-  trialBanner: {
-    backgroundColor: theme.accentDim, borderWidth: 1, borderColor: theme.accentMuted,
-    borderRadius: 12, padding: 12, marginBottom: 16, alignItems: 'center',
-  },
-  trialBannerText: { fontSize: 13, fontWeight: '600', color: theme.accent },
-  expiredBanner: {
-    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border,
-    borderRadius: 12, padding: 12, marginBottom: 16, alignItems: 'center',
-  },
-  expiredBannerText: { fontSize: 13, color: theme.textMuted },
-
-  categorySection: { marginBottom: 24 },
-  categoryTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, marginBottom: 10 },
-  grid: { gap: 8 },
+  scroll: { padding: 20, paddingBottom: 20 },
+  header: { marginBottom: 20 },
+  greeting: { fontSize: 13, color: theme.textMuted },
+  name: { fontSize: 24, fontWeight: '700', color: theme.text, marginTop: 2 },
+  subtitle: { fontSize: 13, color: theme.textMuted, marginTop: 4 },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  statCard: { flex: 1, padding: 12, alignItems: 'center' },
+  statValue: { fontSize: 18, fontWeight: '700', color: theme.accent },
+  statSub: { fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
+  categoryBlock: { marginBottom: 22 },
+  sectionLabel: { fontSize: 10, color: theme.textMuted, letterSpacing: 1, fontWeight: '600', marginBottom: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   actionCard: {
-    backgroundColor: theme.surface, borderWidth: 1,
-    borderRadius: 14, padding: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    width: '48%', backgroundColor: theme.surface,
+    borderWidth: 1, borderColor: theme.border, borderRadius: 16,
+    padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10,
   },
-  actionIcon: { fontSize: 22, width: 32, textAlign: 'center' },
-  actionLabel: { fontSize: 14, fontWeight: '600', color: theme.text },
+  actionIcon: { fontSize: 20 },
+  actionLabel: { fontSize: 13, fontWeight: '500', color: theme.text },
   actionSub: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
-  actionArrow: { fontSize: 20, fontWeight: '700' },
-
-  sectionLabel: { fontSize: 11, color: theme.textMuted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: '500', marginBottom: 10 },
-  recentCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  recentTitle: { fontSize: 13, fontWeight: '500', color: theme.text },
-  recentDate: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
+  recentCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  recentTitle: { fontSize: 13, fontWeight: '500', color: theme.text, flex: 1 },
+  recentDate: { fontSize: 11, color: theme.textMuted, marginTop: 3 },
   recentResult: { fontSize: 14, color: theme.accent, fontWeight: '600' },
-  emptyCard: { alignItems: 'center', padding: 24 },
-  emptyText: { color: theme.textMuted, fontSize: 13 },
-
-  historyLock: {
-    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border,
-    borderRadius: 14, padding: 20, alignItems: 'center', gap: 6, marginBottom: 24,
+  emptyCard: { alignItems: 'center', padding: 32 },
+  emptyText: { color: theme.textMuted, fontSize: 14 },
+  expiredBanner: {
+    backgroundColor: '#E0525214', borderWidth: 1, borderColor: '#E0525244',
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
+    marginBottom: 12, alignItems: 'center',
   },
-  historyLockIcon: { fontSize: 28 },
-  historyLockText: { fontSize: 14, fontWeight: '600', color: theme.text },
-  historyLockSub: { fontSize: 12, color: theme.accent },
+  expiredBannerText: { fontSize: 13, fontWeight: '600', color: theme.danger },
 });
