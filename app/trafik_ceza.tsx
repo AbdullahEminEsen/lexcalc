@@ -8,7 +8,6 @@ import { supabase } from '../lib/supabase';
 import { Card, GoldButton } from '../components/ui';
 import { theme } from '../lib/theme';
 import { formatTL } from '../lib/calculations';
-import { AdBanner } from '../components/AdBanner';
 
 // 2926 Trafik Cezası Tutarları (Karayolları Trafik Kanunu + 2026 yeniden değerleme)
 const CEZALAR = [
@@ -186,7 +185,6 @@ export default function TrafikCezaScreen() {
           </Text>
         </View>
       </ScrollView>
-      <AdBanner />
     </SafeAreaView>
   );
 }

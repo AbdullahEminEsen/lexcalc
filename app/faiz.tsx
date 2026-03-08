@@ -6,9 +6,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { Card, GoldButton, Input } from '../components/ui';
+import { Card, GoldButton } from '../components/ui';
 import { theme } from '../lib/theme';
 import { formatTL } from '../lib/calculations';
+import { PaywallModal, checkMonthlyLimit } from '../components/paywall';
+import { useSubscription } from '../context/SubscriptionContext';
 
 const FAIZ_TURLERI = [
   {
@@ -59,6 +61,8 @@ export default function FaizScreen() {
   const [anapara, setAnapara] = useState('');
   const [gun, setGun] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { isPremium, isTrialActive } = useSubscription();
 
   const seciliTur = FAIZ_TURLERI.find(f => f.key === seciliFaiz)!;
   const anaparaSayi = parseFloat(anapara) || 0;
@@ -108,6 +112,10 @@ export default function FaizScreen() {
 
   const handleSave = async () => {
     if (!sonuc) return;
+    if (!isPremium && !isTrialActive) {
+      const { allowed } = await checkMonthlyLimit();
+      if (!allowed) { setShowPaywall(true); return; }
+    }
     setSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
     await supabase.from('calculations').insert({
@@ -232,6 +240,7 @@ export default function FaizScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="limit" />
     </SafeAreaView>
   );
 }

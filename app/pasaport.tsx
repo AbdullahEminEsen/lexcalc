@@ -8,7 +8,8 @@ import { supabase } from '../lib/supabase';
 import { Card, GoldButton } from '../components/ui';
 import { theme } from '../lib/theme';
 import { formatTL } from '../lib/calculations';
-import { AdBanner } from '../components/AdBanner';
+import { PaywallModal, checkMonthlyLimit } from '../components/paywall';
+import { useSubscription } from '../context/SubscriptionContext';
 
 // 2026 Pasaport Harç Tutarları (492 sayılı Harçlar Kanunu — 2026 tarifesi)
 const PASAPORT_TURLERI = [
@@ -61,11 +62,17 @@ export default function PasaportScreen() {
   const router = useRouter();
   const [secim, setSecim] = useState<Secim | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { isPremium, isTrialActive } = useSubscription();
 
   const toplamTutar = secim ? secim.tutar + (secim.tutar > 0 ? DAMGA_VERGISI : 0) : 0;
 
   const handleSave = async () => {
     if (!secim || secim.tutar === 0) return;
+    if (!isPremium && !isTrialActive) {
+      const { allowed } = await checkMonthlyLimit();
+      if (!allowed) { setShowPaywall(true); return; }
+    }
     setSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
     await supabase.from('calculations').insert({
@@ -179,7 +186,7 @@ export default function PasaportScreen() {
           </Text>
         </Card>
       </ScrollView>
-      <AdBanner />
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="limit" />
     </SafeAreaView>
   );
 }

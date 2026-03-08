@@ -10,7 +10,7 @@ import { Card, GoldButton, Input } from '../../components/ui';
 import { theme, TYPE_ICONS } from '../../lib/theme';
 import { computeBreakdown, formatTL, Extra } from '../../lib/calculations';
 import { useSubscription } from '../../context/SubscriptionContext';
-import { PaywallModal } from '../../components/paywall';
+import { PaywallModal, checkMonthlyLimit } from '../../components/paywall';
 import { AdBanner } from '../../components/AdBanner';
 
 const TYPE_INFO: Record<string, { label: string; desc: string }> = {
@@ -39,6 +39,7 @@ export default function CalcScreen() {
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallReason, setPaywallReason] = useState<'limit' | 'premium'>('premium');
   const { isPremium, isTrialActive } = useSubscription();
 
   useEffect(() => {
@@ -71,7 +72,10 @@ export default function CalcScreen() {
   };
 
   const handleSave = async () => {
-    if (!isPremium && !isTrialActive) { setShowPaywall(true); return; }
+    if (!isPremium && !isTrialActive) {
+      const { allowed } = await checkMonthlyLimit();
+      if (!allowed) { setPaywallReason('limit'); setShowPaywall(true); return; }
+    }
     setSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
     const rec = {
@@ -217,9 +221,7 @@ export default function CalcScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <AdBanner />
-      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} />
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason={paywallReason} />
     </SafeAreaView>
   );
 }

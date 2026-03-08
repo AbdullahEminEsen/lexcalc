@@ -9,7 +9,8 @@ import { supabase } from '../lib/supabase';
 import { Card, GoldButton } from '../components/ui';
 import { theme } from '../lib/theme';
 import { formatTL } from '../lib/calculations';
-import { AdBanner } from '../components/AdBanner';
+import { PaywallModal, checkMonthlyLimit } from '../components/paywall';
+import { useSubscription } from '../context/SubscriptionContext';
 
 // 2026 MTV Tarifeleri (Resmi Gazete — 01.01.2026)
 // I. TARİFE: Otomobil, kaptıkaçtı, arazi taşıtı, benzerler
@@ -112,6 +113,8 @@ export default function MTVScreen() {
   const [hacim, setHacim] = useState('');
   const [yas, setYas] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { isPremium, isTrialActive } = useSubscription();
 
   const hacimSayi = parseInt(hacim) || 0;
   const yasSayi = parseInt(yas) || 0;
@@ -119,6 +122,10 @@ export default function MTVScreen() {
 
   const handleSave = async () => {
     if (!sonuc) return;
+    if (!isPremium && !isTrialActive) {
+      const { allowed } = await checkMonthlyLimit();
+      if (!allowed) { setShowPaywall(true); return; }
+    }
     setSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
     await supabase.from('calculations').insert({
@@ -253,7 +260,7 @@ export default function MTVScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
-      <AdBanner />
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="limit" />
     </SafeAreaView>
   );
 }
