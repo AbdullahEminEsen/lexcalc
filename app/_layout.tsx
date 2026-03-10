@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { SubscriptionProvider } from '../context/SubscriptionContext';
 import { View, ActivityIndicator } from 'react-native';
 import { theme } from '../lib/theme';
-import { AdBanner } from '../components/AdBanner';
 
 function RootLayoutNav() {
   const { session, loading } = useAuth();
@@ -29,30 +28,23 @@ function RootLayoutNav() {
     );
   }
 
-  const inAuthGroup = segments[0] === '(auth)';
-
   return (
-    <View style={{ flex: 1 }}>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.bg },
-          animation: 'slide_from_right',
-        }}
-      >
-        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="calc/[type]" />
-        <Stack.Screen name="calc/custom" />
-        <Stack.Screen name="faiz" />
-        <Stack.Screen name="mtv" />
-        <Stack.Screen name="pasaport" />
-        <Stack.Screen name="paywall" />
-      </Stack>
-
-      {/* Global reklam — login/register ekranlarında gösterme */}
-      {!inAuthGroup && <AdBanner />}
-    </View>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: theme.bg },
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen name="calc/[type]" />
+      <Stack.Screen name="calc/custom" />
+      <Stack.Screen name="faiz" />
+      <Stack.Screen name="mtv" />
+      <Stack.Screen name="pasaport" />
+      <Stack.Screen name="paywall" />
+    </Stack>
   );
 }
 
