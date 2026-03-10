@@ -8,7 +8,9 @@ import { supabase } from '../lib/supabase';
 import { Card, GoldButton } from '../components/ui';
 import { theme } from '../lib/theme';
 import { formatTL } from '../lib/calculations';
+
 import { PaywallModal, checkMonthlyLimit } from '../components/paywall';
+import { AdBanner } from '../components/AdBanner';
 import { useSubscription } from '../context/SubscriptionContext';
 
 // 2026 Pasaport Harç Tutarları (492 sayılı Harçlar Kanunu — 2026 tarifesi)
@@ -186,6 +188,8 @@ export default function PasaportScreen() {
           </Text>
         </Card>
       </ScrollView>
+
+      <AdBanner />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="limit" />
     </SafeAreaView>
   );

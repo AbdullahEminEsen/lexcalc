@@ -10,7 +10,9 @@ import { Card, GoldButton } from '../components/ui';
 import { theme } from '../lib/theme';
 import { formatTL } from '../lib/calculations';
 import { PaywallModal, checkMonthlyLimit } from '../components/paywall';
+import { AdBanner } from '../components/AdBanner';
 import { useSubscription } from '../context/SubscriptionContext';
+
 
 const FAIZ_TURLERI = [
   {
@@ -240,6 +242,8 @@ export default function FaizScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <AdBanner />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="limit" />
     </SafeAreaView>
   );

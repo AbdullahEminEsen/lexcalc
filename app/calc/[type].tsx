@@ -9,9 +9,10 @@ import { supabase } from '../../lib/supabase';
 import { Card, GoldButton, Input } from '../../components/ui';
 import { theme, TYPE_ICONS } from '../../lib/theme';
 import { computeBreakdown, formatTL, Extra } from '../../lib/calculations';
+import { AdBanner } from '../../components/AdBanner';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { PaywallModal, checkMonthlyLimit } from '../../components/paywall';
-import { AdBanner } from '../../components/AdBanner';
+
 
 const TYPE_INFO: Record<string, { label: string; desc: string }> = {
   tapu:      { label: 'Tapu Harcı',       desc: 'Her taraf için %2 (toplam %4) — 2026 oranı' },
@@ -221,6 +222,9 @@ export default function CalcScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+
+      <AdBanner />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason={paywallReason} />
     </SafeAreaView>
   );

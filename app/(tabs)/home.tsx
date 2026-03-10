@@ -9,6 +9,8 @@ import { theme, TYPE_LABELS, TYPE_COLORS } from '../../lib/theme';
 import { formatTL, shortTL } from '../../lib/calculations';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { TrialBanner, PaywallModal } from '../../components/paywall';
+import { AdBanner } from '../../components/AdBanner';
+
 
 const CALC_CATEGORIES = [
   {
@@ -174,6 +176,8 @@ export default function HomeScreen() {
 
       </ScrollView>
 
+
+      <AdBanner />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </SafeAreaView>
   );

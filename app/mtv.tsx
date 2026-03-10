@@ -9,7 +9,9 @@ import { supabase } from '../lib/supabase';
 import { Card, GoldButton } from '../components/ui';
 import { theme } from '../lib/theme';
 import { formatTL } from '../lib/calculations';
+
 import { PaywallModal, checkMonthlyLimit } from '../components/paywall';
+import { AdBanner } from '../components/AdBanner';
 import { useSubscription } from '../context/SubscriptionContext';
 
 // 2026 MTV Tarifeleri (Resmi Gazete — 01.01.2026)
@@ -260,6 +262,8 @@ export default function MTVScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <AdBanner />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="limit" />
     </SafeAreaView>
   );
